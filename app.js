@@ -75,6 +75,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             const cleanCode = codeParam.padStart(6, '0');
             const matched = clientsList.find(c => c.customer_code === cleanCode);
             if (matched) {
+                // Check if already authenticated via localStorage
+                const savedAuthCode = localStorage.getItem('authenticated_customer_code');
+                if (savedAuthCode === cleanCode) {
+                    selectedClient = matched;
+                    clientSearchInput.value = matched.name;
+                    clientSearchInput.disabled = true;
+                    clientSearchInput.style.backgroundColor = '#f1f3f5';
+                    clientSearchInput.style.cursor = 'not-allowed';
+                    
+                    userDisplayName.textContent = matched.name;
+                    await loadExistingPreferences(cleanCode);
+                    transitionStep(stepIdentification, stepPreferences);
+                    return;
+                }
+                
                 selectClientItem(matched);
                 // Lock the input
                 clientSearchInput.disabled = true;
@@ -357,7 +372,10 @@ btnNextStep.addEventListener('click', async () => {
         if (error) throw error;
         
         if (isValid) {
-            // Authentication successful! Fetch existing preferences (to pre-fill)
+            // Save authentication token to localStorage
+            localStorage.setItem('authenticated_customer_code', code);
+
+            // Fetch existing preferences (to pre-fill)
             await loadExistingPreferences(code);
             
             // Go to next step
@@ -457,6 +475,9 @@ preferencesForm.addEventListener('submit', async (e) => {
 
 // Back / Restart actions
 btnChangeUser.addEventListener('click', () => {
+    // Clear localStorage authentication on manual change user
+    localStorage.removeItem('authenticated_customer_code');
+
     clearSelection();
     clientSearchInput.disabled = false;
     clientSearchInput.value = '';
