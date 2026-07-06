@@ -1,0 +1,10 @@
+# Ignore everything by default
+*
+
+# Do NOT ignore these files
+!index.html
+!style.css
+!app.js
+!assets/
+!assets/**
+!.gitignore

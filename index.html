@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Montreal Tênis Clube - Preferências de Alertas</title>
+    <meta name="description" content="Configure seus dias e horários preferidos para ser avisado sobre quadras livres na Montreal Tênis.">
+    <!-- Google Fonts: Hanken Grotesk -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Supabase JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="background-decor"></div>
+    <div class="background-decor-2"></div>
+    
+    <div class="container">
+        <!-- Card Principal -->
+        <main class="form-card">
+            <!-- Cabeçalho com Logo -->
+            <header class="form-header">
+                <img src="assets/Montreal_Logotipo_RGB_Horizontal_1.png" alt="Montreal Tênis Clube Logo" class="brand-logo" id="logo-img">
+                <h1 class="brand-title">Alertas de Quadras Livres</h1>
+                <p class="brand-subtitle">Configure seus dias e horários preferidos para monitorar e receber avisos de quadras livres.</p>
+            </header>
+
+            <!-- Passo 1: Identificação -->
+            <section id="step-identification" class="form-step active">
+                <div class="input-group">
+                    <label for="client-search">Selecione seu Nome</label>
+                    <div class="autocomplete-wrapper">
+                        <input type="text" id="client-search" placeholder="Digite seu nome para buscar..." autocomplete="off">
+                        <div id="autocomplete-list" class="autocomplete-items"></div>
+                    </div>
+                </div>
+
+                <div class="input-group" id="phone-verification-group" style="display: none;">
+                    <label for="phone-digits">Confirme seus dados</label>
+                    <p class="input-hint">Digite os 4 últimos dígitos do seu telefone cadastrado:</p>
+                    <input type="tel" id="phone-digits" placeholder="Ex: 1234" maxlength="4" autocomplete="off">
+                </div>
+
+                <button type="button" id="btn-next-step" class="btn btn-primary" disabled>Confirmar e Prosseguir</button>
+                <p id="auth-error-msg" class="error-text" style="display: none;"></p>
+            </section>
+
+            <!-- Passo 2: Preferências -->
+            <section id="step-preferences" class="form-step">
+                <div class="welcome-banner">
+                    <span class="user-greeting">Olá, <strong id="user-display-name">Jogador</strong></span>
+                    <button type="button" id="btn-change-user" class="btn-link">Alterar cliente</button>
+                </div>
+
+                <form id="preferences-form">
+                    <!-- Configuração por dia da semana -->
+                    <fieldset class="form-section">
+                        <legend>1. Escolha seus Dias e Horários</legend>
+                        <p class="section-hint">Clique em cada dia da semana para ativar e selecionar seus horários de interesse:</p>
+                        
+                        <!-- Accordion Container -->
+                        <div id="accordion-days-container" class="accordion-container">
+                            <!-- Os dias e horários serão renderizados dinamicamente pelo JavaScript -->
+                        </div>
+                    </fieldset>
+
+                    <!-- Limite de Frequência -->
+                    <fieldset class="form-section">
+                        <legend>2. Frequência de Avisos</legend>
+                        <p class="section-hint">Limite máximo de notificações por semana:</p>
+                        
+                        <div class="frequency-control">
+                            <input type="range" id="frequency-range" name="max_alerts" min="1" max="10" value="7">
+                            <div class="frequency-value"><span id="frequency-display">7</span> avisos por semana</div>
+                            <div class="frequency-disclaimer">
+                                📢 <strong>Nota importante:</strong> Você só receberá mensagens se houver quadras livres correspondentes às suas escolhas exatas. Caso não haja vagas no seu horário, você não receberá nenhum aviso naquele período.
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Ação de Envio -->
+                    <div class="form-actions">
+                        <button type="submit" id="btn-submit" class="btn btn-primary btn-block">Salvar Preferências</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Passo 3: Sucesso -->
+            <section id="step-success" class="form-step">
+                <div class="success-illustration">
+                    <div class="checkmark-circle">
+                        <div class="checkmark draw"></div>
+                    </div>
+                </div>
+                <h2>Preferências Salvas!</h2>
+                <p>Obrigado! Suas preferências de monitoramento de quadras livres foram registradas. Avisaremos você pelo WhatsApp assim que surgir um horário compatível!</p>
+                <button type="button" id="btn-restart" class="btn btn-secondary">Alterar Respostas</button>
+            </section>
+        </main>
+        
+        <footer class="footer-branding">
+            &copy; 2026 Montreal Tênis Clube. Todos os direitos reservados.
+        </footer>
+    </div>
+
+    <!-- Script principal -->
+    <script src="app.js"></script>
+</body>
+</html>
