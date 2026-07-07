@@ -29,15 +29,23 @@
 
             <!-- Passo 1: Identificação -->
             <section id="step-identification" class="form-step active">
-                <div class="input-group">
-                    <label for="client-search">Selecione seu Nome</label>
+                <!-- Mensagem de Boas-vindas para Link Seguro -->
+                <div id="client-welcome-group" class="welcome-banner" style="display: none; margin-bottom: 20px; text-align: left;">
+                    <span class="user-greeting">Olá, <strong id="welcome-client-name">Jogador</strong>! 🎾</span>
+                    <p class="welcome-hint" style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.4;">Identificamos seu cadastro. Confirme seus dados abaixo para continuar.</p>
+                </div>
+
+                <!-- Campo de Código de Cliente para Link Geral / Entrada Manual -->
+                <div class="input-group" id="client-code-group">
+                    <label id="client-code-label" for="client-search">Código de Cliente</label>
                     <div class="autocomplete-wrapper">
-                        <input type="text" id="client-search" placeholder="Digite seu nome para buscar..." autocomplete="off">
-                        <div id="autocomplete-list" class="autocomplete-items"></div>
+                        <input type="text" id="client-search" placeholder="Digite seu código de cliente (ex: 000107)..." autocomplete="off">
+                        <div id="autocomplete-list" class="autocomplete-items" style="display: none;"></div>
                     </div>
                 </div>
 
-                <div class="input-group" id="phone-verification-group" style="display: none;">
+                <!-- Campo de Verificação de Telefone (sempre visível no novo fluxo) -->
+                <div class="input-group" id="phone-verification-group">
                     <label for="phone-digits">Confirme seus dados</label>
                     <p class="input-hint">Digite os 4 últimos dígitos do seu telefone cadastrado:</p>
                     <input type="tel" id="phone-digits" placeholder="Ex: 1234" maxlength="4" autocomplete="off">

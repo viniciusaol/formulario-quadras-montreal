@@ -7,7 +7,6 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // 2. Global State & Constants
-let clientsList = [];
 let selectedClient = null; // { customer_code, name }
 
 const DAYS_OF_WEEK = [
@@ -38,8 +37,6 @@ const stepPreferences = document.getElementById('step-preferences');
 const stepSuccess = document.getElementById('step-success');
 
 const clientSearchInput = document.getElementById('client-search');
-const autocompleteList = document.getElementById('autocomplete-list');
-const phoneVerificationGroup = document.getElementById('phone-verification-group');
 const phoneDigitsInput = document.getElementById('phone-digits');
 const btnNextStep = document.getElementById('btn-next-step');
 const authErrorMsg = document.getElementById('auth-error-msg');
@@ -63,56 +60,73 @@ document.addEventListener('DOMContentLoaded', async () => {
         frequencyDisplay.textContent = e.target.value;
     });
 
-    // Check for custom parameters in URL (e.g. ?code=000107)
+    // Setup basic listeners for fields
+    setupFormListeners();
+
+    // Check for custom parameters in URL (e.g. ?id=e1f2a3b4c5d6 ou ?code=000107)
     const urlParams = new URLSearchParams(window.location.search);
+    const idParam = urlParams.get('id');
     const codeParam = urlParams.get('code');
 
-    // Load clients
     try {
-        await loadClients();
-        
-        if (codeParam) {
-            const cleanCode = codeParam.padStart(6, '0');
-            const matched = clientsList.find(c => c.customer_code === cleanCode);
-            if (matched) {
-                // Check if already authenticated via localStorage
+        if (idParam) {
+            // Fluxo Seguro via Token Curto
+            const { data, error } = await supabaseClient.rpc('fn_mt_obter_cliente_por_token', {
+                p_token: idParam.trim()
+            });
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                const client = data[0]; // { customer_code, name }
+                selectedClient = client;
+
+                // Ajusta interface para o modo identificado
+                document.getElementById('client-code-group').style.display = 'none';
+                document.getElementById('client-welcome-group').style.display = 'block';
+                document.getElementById('welcome-client-name').textContent = client.name;
+                
+                clientSearchInput.value = client.customer_code;
+
+                // Verifica se já estava autenticado localmente
                 const savedAuthCode = localStorage.getItem('authenticated_customer_code');
-                if (savedAuthCode === cleanCode) {
-                    selectedClient = matched;
-                    clientSearchInput.value = matched.name;
-                    clientSearchInput.disabled = true;
-                    clientSearchInput.style.backgroundColor = '#f1f3f5';
-                    clientSearchInput.style.cursor = 'not-allowed';
-                    
-                    userDisplayName.textContent = matched.name;
-                    await loadExistingPreferences(cleanCode);
+                if (savedAuthCode === client.customer_code) {
+                    userDisplayName.textContent = client.name;
+                    await loadExistingPreferences(client.customer_code);
                     transitionStep(stepIdentification, stepPreferences);
                     return;
                 }
-                
-                selectClientItem(matched);
-                // Lock the input
-                clientSearchInput.disabled = true;
-                clientSearchInput.style.backgroundColor = '#f1f3f5';
-                clientSearchInput.style.cursor = 'not-allowed';
+
+                phoneDigitsInput.focus();
+                validateIdentificationStep();
+            } else {
+                showAuthError("O link de acesso utilizado é inválido ou expirou. Por favor, solicite um novo link.");
             }
+        } else if (codeParam) {
+            // Retrocompatibilidade por código sequencial (não mostra o nome antes de validar o telefone)
+            const cleanCode = codeParam.padStart(6, '0');
+            clientSearchInput.value = cleanCode;
+            clientSearchInput.disabled = true;
+            clientSearchInput.style.backgroundColor = '#f1f3f5';
+            clientSearchInput.style.cursor = 'not-allowed';
+
+            const savedAuthCode = localStorage.getItem('authenticated_customer_code');
+            if (savedAuthCode === cleanCode) {
+                const name = await loadExistingPreferences(cleanCode);
+                selectedClient = { customer_code: cleanCode, name: name };
+                userDisplayName.textContent = name;
+                transitionStep(stepIdentification, stepPreferences);
+                return;
+            }
+
+            phoneDigitsInput.focus();
+            validateIdentificationStep();
         }
     } catch (err) {
-        console.error("Error loading clients list:", err);
-        showAuthError("Não foi possível carregar a lista de clientes. Por favor, recarregue a página.");
+        console.error("Error during initialization:", err);
+        showAuthError("Não foi possível carregar os dados. Por favor, recarregue a página.");
     }
 });
-
-// Load client list from Supabase using secure RPC
-async function loadClients() {
-    const { data, error } = await supabaseClient.rpc('fn_mt_listar_clientes');
-        
-    if (error) throw error;
-    clientsList = data || [];
-    
-    // Setup autocomplete input listeners
-    setupAutocompleteInput();
-}
 
 // 4. Dynamic Accordion Generation
 function renderAccordion() {
@@ -264,104 +278,45 @@ function updateDayBadge(dayId) {
     }
 }
 
-// 5. Autocomplete / Searchable Dropdown Logic
-function setupAutocompleteInput() {
-    clientSearchInput.addEventListener('input', function() {
-        const val = this.value;
-        closeAllLists();
-        if (!val) {
-            clearSelection();
-            return;
-        }
-        
-        const matches = clientsList.filter(item => 
-            item.name.toLowerCase().includes(val.toLowerCase())
-        );
-        
-        if (matches.length === 0) {
-            const noMatchDiv = document.createElement("DIV");
-            noMatchDiv.innerHTML = "Nenhum cliente encontrado.";
-            noMatchDiv.style.color = "#8c8c8c";
-            noMatchDiv.style.cursor = "default";
-            autocompleteList.appendChild(noMatchDiv);
-            autocompleteList.style.display = "block";
-            return;
-        }
-        
-        matches.slice(0, 10).forEach(item => {
-            const div = document.createElement("DIV");
-            const startIdx = item.name.toLowerCase().indexOf(val.toLowerCase());
-            const endIdx = startIdx + val.length;
-            
-            div.innerHTML = item.name.substr(0, startIdx) + 
-                            "<strong>" + item.name.substr(startIdx, val.length) + "</strong>" + 
-                            item.name.substr(endIdx);
-            
-            div.addEventListener("click", () => {
-                clientSearchInput.value = item.name;
-                selectClientItem(item);
-                closeAllLists();
-            });
-            autocompleteList.appendChild(div);
-        });
-        
-        autocompleteList.style.display = "block";
-    });
-
-    // Close autocomplete lists when clicking elsewhere
-    document.addEventListener("click", (e) => {
-        if (e.target !== clientSearchInput) {
-            closeAllLists();
-        }
-    });
-
+// 5. Identification Form Listeners
+function setupFormListeners() {
+    clientSearchInput.addEventListener('input', validateIdentificationStep);
     phoneDigitsInput.addEventListener('input', validateIdentificationStep);
-}
-
-// Helper to remove any mistakenly created files in parent path
-if (window.location.hostname === 'localhost') {
-    console.log("Locally running app.js in correct path.");
-}
-
-function closeAllLists() {
-    autocompleteList.innerHTML = '';
-    autocompleteList.style.display = 'none';
-}
-
-function selectClientItem(client) {
-    selectedClient = client;
-    clientSearchInput.value = client.name;
-    
-    // Show phone verification
-    phoneVerificationGroup.style.display = 'block';
-    phoneDigitsInput.focus();
-    validateIdentificationStep();
 }
 
 function clearSelection() {
     selectedClient = null;
-    phoneVerificationGroup.style.display = 'none';
     phoneDigitsInput.value = '';
     btnNextStep.disabled = true;
     hideAuthError();
 }
 
 function validateIdentificationStep() {
-    const isClientSelected = !!selectedClient;
-    const isPhoneValid = phoneDigitsInput.value.length === 4 && /^\d+$/.test(phoneDigitsInput.value);
+    let isCodeValid = false;
     
-    btnNextStep.disabled = !(isClientSelected && isPhoneValid);
+    if (selectedClient) {
+        isCodeValid = true;
+    } else {
+        const codeVal = clientSearchInput.value.trim();
+        isCodeValid = codeVal.length >= 1;
+    }
+    
+    const isPhoneValid = phoneDigitsInput.value.length === 4 && /^\d+$/.test(phoneDigitsInput.value);
+    btnNextStep.disabled = !(isCodeValid && isPhoneValid);
 }
 
 // 6. Authentication via Supabase RPC
 btnNextStep.addEventListener('click', async () => {
-    if (!selectedClient) return;
-    
     hideAuthError();
     setLoading(true);
     
     const lastDigits = phoneDigitsInput.value;
-    const code = selectedClient.customer_code;
+    let code = selectedClient ? selectedClient.customer_code : clientSearchInput.value.trim();
+    if (!selectedClient) {
+        if (/^\d+$/.test(code)) {
+            code = code.padStart(6, '0');
+        }
+    }
     
     try {
         const { data: isValid, error } = await supabaseClient.rpc('fn_mt_verificar_cliente_telefone', {
@@ -375,11 +330,13 @@ btnNextStep.addEventListener('click', async () => {
             // Save authentication token to localStorage
             localStorage.setItem('authenticated_customer_code', code);
 
-            // Fetch existing preferences (to pre-fill)
-            await loadExistingPreferences(code);
+            // Fetch existing preferences (to pre-fill) and retrieve real client name
+            const clientName = await loadExistingPreferences(code);
+            
+            selectedClient = { customer_code: code, name: clientName };
             
             // Go to next step
-            userDisplayName.textContent = selectedClient.name;
+            userDisplayName.textContent = clientName;
             transitionStep(stepIdentification, stepPreferences);
         } else {
             showAuthError("Os 4 últimos dígitos do telefone estão incorretos para o cliente selecionado. Verifique e tente novamente.");
@@ -392,7 +349,7 @@ btnNextStep.addEventListener('click', async () => {
     }
 });
 
-// Fetch existing client preferences to pre-fill the form
+// Fetch existing client preferences to pre-fill the form and return the client's name
 async function loadExistingPreferences(customerCode) {
     try {
         const { data, error } = await supabaseClient.rpc('fn_mt_obter_preferencias_cliente', {
@@ -422,9 +379,13 @@ async function loadExistingPreferences(customerCode) {
             const maxAlerts = prefObj.max_alerts_per_week || 7;
             frequencyRange.value = maxAlerts;
             frequencyDisplay.textContent = maxAlerts;
+            
+            return prefObj.client_name || "Jogador";
         }
+        return "Jogador";
     } catch (err) {
         console.warn("Failed to load existing preferences:", err);
+        return "Jogador";
     }
 }
 
@@ -479,6 +440,11 @@ btnChangeUser.addEventListener('click', () => {
     localStorage.removeItem('authenticated_customer_code');
 
     clearSelection();
+    
+    // Restore UI manually input visual states
+    document.getElementById('client-code-group').style.display = 'block';
+    document.getElementById('client-welcome-group').style.display = 'none';
+    
     clientSearchInput.disabled = false;
     clientSearchInput.value = '';
     clientSearchInput.style.backgroundColor = '';
